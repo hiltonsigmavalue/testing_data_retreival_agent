@@ -51,7 +51,9 @@ def test_generate_sql_accepts_json_object_encoded_as_string() -> None:
     assert response.json()["query"] == "Show total value for residential sale in Pune in 2024"
 
 
-@pytest.mark.parametrize("model", ["gpt-4o-mini", "gpt-5.1"])
+@pytest.mark.parametrize(
+    "model", ["gpt-4o-mini", "gpt-5.1", "deepseek.v3.2", "moonshotai.kimi-k2.5"]
+)
 def test_generate_sql_accepts_supported_selected_model(model: str) -> None:
     response = _client().post(
         "/api/v1/sql/generate",
@@ -106,6 +108,17 @@ def test_frontend_page_and_assets_are_served() -> None:
     assert "Real Estate SQL Agent" in page.text
     assert 'value="gpt-4o-mini"' in page.text
     assert 'value="gpt-5.1"' in page.text
+    assert 'value="deepseek.v3.2"' in page.text
+    assert 'value="moonshotai.kimi-k2.5"' in page.text
     assert javascript.status_code == 200
     assert "/api/v1/sql/generate" in javascript.text
     assert "model: modelSelect.value" in javascript.text
+    assert "clarificationAnswerPanel" in page.text
+    assert "Submit Answer & Rerun" in javascript.text
+    assert "Clarification answer:" in javascript.text
+    assert "downloadReportButton" in page.text
+    assert "downloadWordReport(data, modelLabel)" in javascript.text
+    assert "application/msword" in javascript.text
+    assert "ReAct Iteration" in javascript.text
+    assert "iteration-group" in javascript.text
+    assert "Stage 3.2 - SQL Probe" in javascript.text

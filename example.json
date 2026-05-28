@@ -1,0 +1,38 @@
+{
+    "stage": "Stage 3.1  - SQL Review",
+    "sql_review_status": "approved | needs_fix | rejected | blocked",
+    "metric_relationship": "combined | individual",
+    "review_checks": {
+        "sql_build_status_ready": true,
+        "metric_relationship_followed": true,
+        "formula_correct": true,
+        "columns_valid": true,
+        "filters_correct": true,
+        "grouping_correct": true,
+        "sorting_or_ranking_correct": true,
+        "sql_safe": true
+    },
+    "approved_sql": {
+        "combined_sql": {
+            "applicable": true,
+            "sql_query": ""
+        },
+        "individual_sql_queries": [
+            {
+                "metric_name": "",
+                "sql_query": ""
+            }
+        ]
+    },
+    "errors_found": [],
+    "fix_instructions": [],
+    "blocking_reason": "",
+    "react_loop": {
+        "iteration": 1,
+        "max_iterations": 3,
+        "previous_stage": "Stage 3 SQL_Build | Stage 3.4 SQL_Fix",
+        "current_stage": "Stage 3.1 SQL Review",
+        "next_stage": "Stage 3.2 SQL Probe | stop",
+        "loop_status": "continue | failed"
+    }
+}

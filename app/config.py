@@ -9,6 +9,14 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = Field(None, validation_alias="OPENAI_API_KEY")
     openai_model: str = Field("gpt-4o-mini", validation_alias="OPENAI_MODEL")
+    bedrock_api_key: str | None = Field(None, validation_alias="BEDROCK_API_KEY")
+    bedrock_region: str = Field("ap-south-1", validation_alias="BEDROCK_REGION")
+    bedrock_base_url: str | None = Field(None, validation_alias="BEDROCK_BASE_URL")
+    transaction_database_url: str | None = Field(
+        None, validation_alias="TRANSACTION_DATABASE_URL"
+    )
+    sql_probe_sample_limit: int = Field(25, ge=1, validation_alias="SQL_PROBE_SAMPLE_LIMIT")
+    react_max_iterations: int = Field(3, ge=1, validation_alias="REACT_MAX_ITERATIONS")
     app_name: str = "Real Estate SQL Agent API"
     log_level: str = Field("INFO", validation_alias="LOG_LEVEL")
 

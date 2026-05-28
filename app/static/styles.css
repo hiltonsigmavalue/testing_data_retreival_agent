@@ -83,6 +83,12 @@ h2 {
   margin: 0;
 }
 
+.output-actions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
 .conversation {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -201,6 +207,14 @@ select:focus {
   padding: 9px;
 }
 
+.clarification-answer {
+  margin-top: 12px;
+}
+
+.clarification-answer textarea {
+  width: 100%;
+}
+
 .error {
   color: var(--danger);
   font-size: 13px;
@@ -234,6 +248,11 @@ select:focus {
   color: var(--accent);
 }
 
+.badge.no_data {
+  background: #fff1d5;
+  color: var(--warning);
+}
+
 .badge.needs_clarification {
   background: #fff1d5;
   color: var(--warning);
@@ -246,6 +265,26 @@ select:focus {
 }
 
 .stages {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.iteration-group {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  grid-column: 1 / -1;
+  padding: 14px;
+}
+
+.iteration-heading {
+  color: var(--accent);
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.iteration-stages {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -279,7 +318,18 @@ pre {
 
 @media (max-width: 860px) {
   .workspace,
-  .stages {
+  .stages,
+  .iteration-stages {
     grid-template-columns: 1fr;
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .output-actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
   }
 }

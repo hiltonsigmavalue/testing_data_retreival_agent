@@ -73,28 +73,78 @@ class PromptRenderer:
             }
         )
 
-    def stage_3(self, stage_2_output: dict[str, Any]) -> str:
+    def stage_3(self, stage_2_1_output: dict[str, Any]) -> str:
         return _fill(
             promt.stage_3,
             {
-                "algorithm_status": str(stage_2_output.get("algorithm_status", "")),
+                "algorithm_status": str(stage_2_1_output.get("algorithm_status", "")),
+                "final_algorithm": _json(stage_2_1_output),
                 "final_algorithm_structure": _json(
-                    stage_2_output.get("final_algorithm_structure", {})
+                    stage_2_1_output.get("final_algorithm_structure", {})
                 ),
                 "schema": TRANSACTION_QUERY_SCHEMA,
             },
         )
 
     def stage_3_1(
-        self, stage_2_output: dict[str, Any], stage_3_output: dict[str, Any]
+        self,
+        stage_2_1_output: dict[str, Any],
+        sql_candidate_output: dict[str, Any],
+        iteration: int = 1,
     ) -> str:
         return _fill(
             promt.stage_3_1,
             {
                 "final_algorithm_structure": _json(
-                    stage_2_output.get("final_algorithm_structure", {})
+                    stage_2_1_output.get("final_algorithm_structure", {})
                 ),
-                "sql_build_output": _json(stage_3_output),
+                "sql_build_output": _json(sql_candidate_output),
+                "react_iteration": str(iteration),
+                "schema": TRANSACTION_QUERY_SCHEMA,
+            },
+        )
+
+    def stage_3_3(
+        self,
+        stage_2_1_output: dict[str, Any],
+        sql_review_output: dict[str, Any],
+        sql_probe_output: dict[str, Any],
+        iteration: int,
+        max_iterations: int,
+    ) -> str:
+        return _fill(
+            promt.stage_3_3,
+            {
+                "final_algorithm_structure": _json(
+                    stage_2_1_output.get("final_algorithm_structure", {})
+                ),
+                "sql_review_output": _json(sql_review_output),
+                "sql_probe_output": _json(sql_probe_output),
+                "react_iteration": str(iteration),
+                "max_iterations": str(max_iterations),
+                "schema": TRANSACTION_QUERY_SCHEMA,
+            },
+        )
+
+    def stage_3_4(
+        self,
+        stage_2_1_output: dict[str, Any],
+        sql_review_output: dict[str, Any],
+        sql_observe_output: dict[str, Any],
+        iteration: int,
+        max_iterations: int,
+    ) -> str:
+        return _fill(
+            promt.stage_3_4,
+            {
+                "final_algorithm_structure": _json(
+                    stage_2_1_output.get("final_algorithm_structure", {})
+                ),
+                "sql_review_output": _json(sql_review_output),
+                "sql_observe_output": _json(sql_observe_output),
+                "react_iteration": str(iteration),
+                "next_react_iteration": str(iteration + 1),
+                "max_iterations": str(max_iterations),
                 "schema": TRANSACTION_QUERY_SCHEMA,
             },
         )

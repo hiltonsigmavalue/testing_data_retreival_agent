@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from app.config import Settings, get_settings
 from app.llm import OpenAIJsonAgent
 from app.models import GenerateSqlRequest, PipelineResponse
+from app.sql_probe import SqlProbeService
 from app.workflow import SqlAgentWorkflow
 
 router = APIRouter()
@@ -12,7 +13,11 @@ def get_workflow(
     request: GenerateSqlRequest,
     settings: Settings = Depends(get_settings),
 ) -> SqlAgentWorkflow:
-    return SqlAgentWorkflow(OpenAIJsonAgent(settings, model=request.model))
+    return SqlAgentWorkflow(
+        OpenAIJsonAgent(settings, model=request.model),
+        sql_probe=SqlProbeService(settings),
+        max_react_iterations=settings.react_max_iterations,
+    )
 
 
 @router.get("/health")

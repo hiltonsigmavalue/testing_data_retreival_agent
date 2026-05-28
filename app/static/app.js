@@ -9,7 +9,14 @@ const clearButton = document.getElementById("clearButton");
 const stageOutputs = document.getElementById("stageOutputs");
 const statusBadge = document.getElementById("statusBadge");
 const resultMessage = document.getElementById("resultMessage");
+const downloadReportButton = document.getElementById("downloadReportButton");
 const clarificationHint = document.getElementById("clarificationHint");
+const clarificationAnswerPanel = document.getElementById("clarificationAnswerPanel");
+const clarificationAnswer = document.getElementById("clarificationAnswer");
+
+let pendingClarificationQuery = "";
+let pendingClarificationStage = "";
+let latestReport = null;
 
 const defaultEvidence = {
   attribute_master_tables: {},
@@ -51,38 +58,174 @@ function parseEvidence() {
 function renderStages(data) {
   stageOutputs.replaceChildren();
   const outputs = data.stages || {};
-  Object.entries(outputs).forEach(([stageName, value]) => {
-    const details = document.createElement("details");
-    details.open = stageName === "stage_3" || stageName === "stage_3_1";
-    const summary = document.createElement("summary");
-    summary.textContent = stageName.replaceAll("_", ".");
-    const pre = document.createElement("pre");
-    pre.textContent = JSON.stringify(value, null, 2);
-    details.append(summary, pre);
-    stageOutputs.appendChild(details);
+  const reactIterations = data.react_iterations || [];
+  const loopStagePattern = /^stage_3_[1-4](?:_iteration_\d+)?$/;
+
+  Object.entries(outputs)
+    .filter(([stageName]) => !reactIterations.length || !loopStagePattern.test(stageName))
+    .forEach(([stageName, value]) => {
+      stageOutputs.appendChild(createStageDetails(stageName.replaceAll("_", "."), value));
+    });
+
+  reactIterations.forEach((iteration) => {
+    const group = document.createElement("section");
+    group.className = "iteration-group";
+    const heading = document.createElement("h3");
+    heading.className = "iteration-heading";
+    heading.textContent = `ReAct Iteration ${iteration.iteration}`;
+    const stages = document.createElement("div");
+    stages.className = "iteration-stages";
+
+    [
+      ["Stage 3.1 - SQL Review", iteration.sql_review_output],
+      ["Stage 3.2 - SQL Probe", iteration.sql_probe_output],
+      ["Stage 3.3 - SQL Observe", iteration.sql_observe_output],
+      ["Stage 3.4 - SQL Fix", iteration.sql_fix_output]
+    ].forEach(([stageLabel, value]) => {
+      if (value) {
+        stages.appendChild(createStageDetails(stageLabel, value, true));
+      }
+    });
+
+    group.append(heading, stages);
+    stageOutputs.appendChild(group);
   });
+}
+
+function createStageDetails(stageLabel, value, open = false) {
+  const details = document.createElement("details");
+  details.open = open || stageLabel === "stage.3";
+  const summary = document.createElement("summary");
+  summary.textContent = stageLabel;
+  const pre = document.createElement("pre");
+  pre.textContent = JSON.stringify(value, null, 2);
+  details.append(summary, pre);
+  return details;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function buildWordReport(data, modelLabel) {
+  const generatedAt = new Date().toLocaleString();
+  const reactIterations = data.react_iterations || [];
+  const loopStagePattern = /^stage_3_[1-4](?:_iteration_\d+)?$/;
+  const stageSections = Object.entries(data.stages || {})
+    .filter(([stageName]) => !reactIterations.length || !loopStagePattern.test(stageName))
+    .map(([stageName, value]) => `
+    <h2>${escapeHtml(stageName.replaceAll("_", "."))}</h2>
+    <pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>
+  `).join("");
+  const noStages = stageSections ? "" : "<p>No completed stage outputs were returned.</p>";
+  const reactSections = reactIterations.map((iteration) => `
+    <h2>ReAct Iteration ${escapeHtml(iteration.iteration)}</h2>
+    ${[
+      ["Stage 3.1 - SQL Review", iteration.sql_review_output],
+      ["Stage 3.2 - SQL Probe", iteration.sql_probe_output],
+      ["Stage 3.3 - SQL Observe", iteration.sql_observe_output],
+      ["Stage 3.4 - SQL Fix", iteration.sql_fix_output]
+    ].filter(([, value]) => value).map(([stageLabel, value]) => `
+      <h3>${escapeHtml(stageLabel)}</h3>
+      <pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>
+    `).join("")}
+  `).join("");
+
+  return `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <title>SQL Agent Stage Report</title>
+      <style>
+        body { font-family: Arial, sans-serif; color: #19221f; }
+        h1 { color: #125a47; }
+        h2 { margin-top: 26px; border-bottom: 1px solid #d7ddd7; padding-bottom: 6px; }
+        .metadata { border: 1px solid #d7ddd7; background: #f5f5f0; padding: 12px; }
+        pre { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 10pt; }
+      </style>
+    </head>
+    <body>
+      <h1>Real Estate SQL Agent - Stage Report</h1>
+      <div class="metadata">
+        <p><strong>Generated:</strong> ${escapeHtml(generatedAt)}</p>
+        <p><strong>Model:</strong> ${escapeHtml(modelLabel)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(data.pipeline_status)}</p>
+        <p><strong>Query:</strong> ${escapeHtml(data.query)}</p>
+        <p><strong>Message:</strong> ${escapeHtml(data.message)}</p>
+        ${data.clarification_question
+          ? `<p><strong>Clarification:</strong> ${escapeHtml(data.clarification_question)}</p>`
+          : ""}
+      </div>
+      ${stageSections}${noStages}
+      ${reactSections}
+    </body>
+  </html>`;
+}
+
+function downloadWordReport(data, modelLabel) {
+  const documentBody = buildWordReport(data, modelLabel);
+  const reportBlob = new Blob(["\ufeff", documentBody], {
+    type: "application/msword;charset=utf-8"
+  });
+  const reportUrl = URL.createObjectURL(reportBlob);
+  const downloadLink = document.createElement("a");
+  const dateStamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+  downloadLink.href = reportUrl;
+  downloadLink.download = `sql-agent-stage-report-${dateStamp}.doc`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  URL.revokeObjectURL(reportUrl);
 }
 
 function showClarification(data) {
   const stage = data.stopped_at_stage ? ` (${data.stopped_at_stage.replaceAll("_", ".")})` : "";
   const question = data.clarification_question || "Please clarify the requested values.";
   appendBubble("assistant", `Clarification required${stage}: ${question}`);
+  pendingClarificationQuery = data.query || queryInput.value.trim();
+  pendingClarificationStage = data.stopped_at_stage || "";
   clarificationHint.textContent =
-    "Edit your complete query below to include this answer, then run the pipeline again.";
+    pendingClarificationStage === "stage_2_1"
+      ? "Answer below and update Semantic context JSON too if the database-approved value needs correction."
+      : "Enter your answer below. The pipeline will rerun using your original query plus this clarification.";
   clarificationHint.classList.remove("hidden");
-  queryInput.focus();
+  clarificationAnswer.value = "";
+  clarificationAnswerPanel.classList.remove("hidden");
+  submitButton.textContent = "Submit Answer & Rerun";
+  clarificationAnswer.focus();
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const query = queryInput.value.trim();
+  const answer = clarificationAnswer.value.trim();
+  let query = queryInput.value.trim();
+  if (pendingClarificationQuery && !answer && query === pendingClarificationQuery) {
+    clarificationHint.textContent = "Enter a clarification answer, or edit the complete query before rerunning.";
+    clarificationHint.classList.remove("hidden");
+    clarificationAnswer.focus();
+    return;
+  }
   const semanticContext = parseEvidence();
   if (!query || !semanticContext) {
     return;
   }
 
-  appendBubble("user", query);
+  if (pendingClarificationQuery && answer) {
+    query = `${pendingClarificationQuery}\nClarification answer: ${answer}`;
+    queryInput.value = query;
+    appendBubble("user", answer);
+  } else {
+    appendBubble("user", query);
+  }
+
   clarificationHint.classList.add("hidden");
+  clarificationAnswerPanel.classList.add("hidden");
+  pendingClarificationQuery = "";
+  pendingClarificationStage = "";
   const modelLabel = modelSelect.options[modelSelect.selectedIndex].text;
   setStatus("running", `Running the sequential agent pipeline with ${modelLabel}...`);
   submitButton.disabled = true;
@@ -107,10 +250,15 @@ form.addEventListener("submit", async (event) => {
 
     renderStages(data);
     setStatus(data.pipeline_status, data.message);
+    latestReport = { data, modelLabel };
+    downloadReportButton.classList.remove("hidden");
+    downloadWordReport(data, modelLabel);
     if (data.pipeline_status === "needs_clarification") {
       showClarification(data);
     } else if (data.pipeline_status === "completed") {
-      appendBubble("assistant", "SQL was generated and approved. See the Stage 3 and SQL Review panels.");
+      appendBubble("assistant", "SQL was reviewed, executed, and returned data. See the ReAct stage panels.");
+    } else if (data.pipeline_status === "no_data") {
+      appendBubble("assistant", "SQL executed, but no matching data was found. See SQL Observe evidence.");
     } else {
       appendBubble("assistant", data.message);
     }
@@ -120,7 +268,15 @@ form.addEventListener("submit", async (event) => {
   } finally {
     submitButton.disabled = false;
     modelSelect.disabled = false;
-    submitButton.textContent = "Run Pipeline";
+    if (!pendingClarificationQuery) {
+      submitButton.textContent = "Run Pipeline";
+    }
+  }
+});
+
+downloadReportButton.addEventListener("click", () => {
+  if (latestReport) {
+    downloadWordReport(latestReport.data, latestReport.modelLabel);
   }
 });
 
@@ -128,6 +284,13 @@ clearButton.addEventListener("click", () => {
   queryInput.value = "";
   stageOutputs.replaceChildren();
   clarificationHint.classList.add("hidden");
+  clarificationAnswerPanel.classList.add("hidden");
+  clarificationAnswer.value = "";
+  pendingClarificationQuery = "";
+  pendingClarificationStage = "";
+  latestReport = null;
+  downloadReportButton.classList.add("hidden");
+  submitButton.textContent = "Run Pipeline";
   conversation.innerHTML = "";
   appendBubble(
     "assistant",
